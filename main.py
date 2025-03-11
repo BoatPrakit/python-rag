@@ -18,6 +18,16 @@ def insert_document(text, vector):
     cur.execute("INSERT INTO documents (text, vector) VALUES (%s, %s)", (text, vector.tolist()))
     conn.commit()
 
+def get_documents(vector):
+    # Get documents from the database
+    cur.execute("SELECT text, vector FROM documents WHERE vector <-> %s", (vector.tolist(),))
+    return cur.fetchall()
+
+def close_connection():
+    # Close the database connection
+    cur.close()
+    conn.close()
+
 # 1. Load a pretrained Sentence Transformer model
 def load_model():
     if os.path.exists("./models/bge-m3"):
@@ -30,18 +40,21 @@ def load_model():
 model = load_model()
 
 # The sentences to encode
-sentences = "Hello world"
+sentences = "aaa"
 
 # 2. Calculate embeddings by calling model.encode()
 embeddings = model.encode(sentences)
-embedding2 = model.encode("aaa")
-print(embeddings.tolist())
-# insert_embedding(sentences, embeddings)
-print(embeddings.shape)
+# embedding2 = get_documents("Hell")
+# print(embeddings.tolist())
+insert_document(sentences, embeddings)
+# print(embeddings.shape)
 
 # 3. Calculate the embedding similarities
-similarities = model.similarity(embeddings, embedding2)
-print(similarities.tolist())
+# similarities = model.similarity(embeddings, embeddings)
+# print(similarities.tolist())
 # tensor([[1.0000, 0.6660, 0.1046],
 #         [0.6660, 1.0000, 0.1411],
 #         [0.1046, 0.1411, 1.0000]])
+
+close_connection()
+
