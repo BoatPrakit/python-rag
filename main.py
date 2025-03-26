@@ -2,6 +2,17 @@ from sentence_transformers import SentenceTransformer
 import os
 import psycopg2
 
+# 1. Load a pretrained Sentence Transformer model
+def load_model():
+    if os.path.exists("./models/bge-m3"):
+        return SentenceTransformer("./models/bge-m3")
+    else:
+        model = SentenceTransformer("BAAI/bge-m3")
+        model.save("./models/bge-m3")
+        return model
+
+model = load_model()
+
 ENV = {
     "POSTGRES_DB": os.environ.get("POSTGRES_DB"),
     "POSTGRES_USER": os.environ.get("POSTGRES_USER"),
@@ -18,9 +29,11 @@ def insert_document(text, vector):
     cur.execute("INSERT INTO documents (text, vector) VALUES (%s, %s)", (text, vector.tolist()))
     conn.commit()
 
-def get_documents(vector):
+def get_documents(text, limit=5):
     # Get documents from the database
-    cur.execute("SELECT text, vector FROM documents WHERE vector <-> %s", (vector.tolist(),))
+    vector = model.encode(text).tolist()
+    embedding = "[" + ", ".join(map(str, vector)) + "]"
+    cur.execute("SELECT text, vector <=> %s::vector AS similarity  FROM documents ORDER BY similarity ASC LIMIT %s", (embedding, limit))
     return cur.fetchall()
 
 def close_connection():
@@ -28,25 +41,17 @@ def close_connection():
     cur.close()
     conn.close()
 
-# 1. Load a pretrained Sentence Transformer model
-def load_model():
-    if os.path.exists("./models/bge-m3"):
-        return SentenceTransformer("./models/bge-m3")
-    else:
-        model = SentenceTransformer("BAAI/bge-m3")
-        model.save("./models/bge-m3")
-        return model
-
-model = load_model()
 
 # The sentences to encode
-sentences = "aaa"
+sentences = "AaaAaa?"
 
 # 2. Calculate embeddings by calling model.encode()
-embeddings = model.encode(sentences)
-# embedding2 = get_documents("Hell")
+# embeddings = model.encode(sentences)
+embedding2 = get_documents(sentences)
+print(embedding2)
+
 # print(embeddings.tolist())
-insert_document(sentences, embeddings)
+# insert_document(sentences, embeddings)
 # print(embeddings.shape)
 
 # 3. Calculate the embedding similarities
@@ -57,4 +62,3 @@ insert_document(sentences, embeddings)
 #         [0.1046, 0.1411, 1.0000]])
 
 close_connection()
-
