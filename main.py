@@ -1,6 +1,8 @@
+import ollama
 from sentence_transformers import SentenceTransformer
 import os
 import psycopg2
+from ollama import chat
 
 # 1. Load a pretrained Sentence Transformer model
 def load_model():
@@ -24,9 +26,10 @@ ENV = {
 conn = psycopg2.connect(f'dbname={ENV["POSTGRES_DB"]} user={ENV["POSTGRES_USER"]} password={ENV["POSTGRES_PASSWORD"]} host=localhost port={ENV["POSTGRES_PORT"]}')
 cur = conn.cursor()
 
-def insert_document(text, vector):
+def insert_document(text):
     # Insert text and vector into the database
-    cur.execute("INSERT INTO documents (text, vector) VALUES (%s, %s)", (text, vector.tolist()))
+    vector = model.encode(text).tolist()
+    cur.execute("INSERT INTO documents (text, vector) VALUES (%s, %s)", (text, vector))
     conn.commit()
 
 def get_documents(text, limit=5):
@@ -42,23 +45,26 @@ def close_connection():
     conn.close()
 
 
+# ss = [
+#     "ต้มยำกุ้งถือกำเนิดในภาคกลางของประเทศไทย และเป็นอาหารที่มีรสจัด",
+#     "ข้าวซอยเป็นอาหารพื้นเมืองของภาคเหนือ มีต้นกำเนิดจากวัฒนธรรมจีน-มุสลิม",
+#     "หมูปิ้งเริ่มเป็นที่นิยมในกรุงเทพฯ ช่วงปี 2520 และกลายเป็นอาหารเช้ายอดฮิต",
+#     "ส้มตำไทยได้รับอิทธิพลจากลาว แต่ได้รับการปรับรสชาติให้เหมาะกับคนไทย",
+#     "แกงเขียวหวานถือกำเนิดขึ้นในสมัยอยุธยา โดยได้รับอิทธิพลจากเครื่องเทศอินเดีย"
+# ]
+# for s in ss:
+#     insert_document(s)
 # The sentences to encode
-sentences = "AaaAaa?"
+sentences = "มุสลิมคืออะไร"
 
 # 2. Calculate embeddings by calling model.encode()
-# embeddings = model.encode(sentences)
 embedding2 = get_documents(sentences)
-print(embedding2)
 
-# print(embeddings.tolist())
-# insert_document(sentences, embeddings)
-# print(embeddings.shape)
+response = ollama.chat(model="llama3.1", messages=[
+    {"role": "system", "content": "You are a assistant, use the following information to answer the user's question: " + str(embedding2)},
+    {"role": "user", "content": sentences}
+])
 
-# 3. Calculate the embedding similarities
-# similarities = model.similarity(embeddings, embeddings)
-# print(similarities.tolist())
-# tensor([[1.0000, 0.6660, 0.1046],
-#         [0.6660, 1.0000, 0.1411],
-#         [0.1046, 0.1411, 1.0000]])
+print(response)
 
 close_connection()
